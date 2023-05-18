@@ -8,6 +8,11 @@ import scipy.sparse.linalg
 
 
 def read_eigenvalues(file):
+    '''
+    .txtとしてまとめられているデータセットを読み込んで、パラメータh1h2とそれに対応する
+    固有ベクトルをリストに格納する。
+    '''
+    
     with open(file, 'r+') as f:
         text_data = f.readlines()
 
@@ -21,6 +26,10 @@ def read_eigenvalues(file):
         return h_vals, np.loadtxt(text_data, dtype=complex)
     
 def find_kron(array, index, q_bits):
+    '''
+    引数で指定したindexのqubitにarray(パウリ行列)を作用し、それ以外に単位行列を
+    作用させる。
+    '''
     order = np.ones(q_bits)
     order[index-1] = 0
     assert index <= q_bits
