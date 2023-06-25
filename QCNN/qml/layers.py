@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.linalg as la
 from qiskit import quantum_info as qi
-from qiskit import QuantumCircuit
 
 
 # Helper Functions ################################################
@@ -81,8 +80,8 @@ def generate_uniformly_controlled_rotation(circ, params, control_qubit_indicies,
                 circ.cx(control_qubit_indicies[control_element], target_qubit_index)
                 break
 
-    print("generate_uniformly_controlled_rotationの回路図")
-    print(circ)
+    # print("generate_uniformly_controlled_rotationの回路図")
+    # print(circ)
 
     return
 
@@ -110,7 +109,7 @@ def legacy_conv4_layer_func(circ, params, active_qubits, barrier=True, kwargs={}
     if "label" in kwargs:
         label = kwargs["label"]
     else:
-        label = '1c4'
+        label = 'lc4'
 
     while index + 3 < len(active_qubits):
         q_index = active_qubits[index]
@@ -134,8 +133,8 @@ def legacy_conv4_layer_func(circ, params, active_qubits, barrier=True, kwargs={}
     if barrier:
         circ.barrier()
 
-    print("4qubit畳み込み層追加後")
-    print(circ)
+    # print("4qubit畳み込み層追加後")
+    # print(circ)
 
     return circ
 
@@ -160,7 +159,7 @@ def legacy_conv_layer_func(circ, params, active_qubits, barrier=True, kwargs={})
     if "label" in kwargs:
         label = kwargs["label"]
     else:
-        label = 'ic'
+        label = 'lc'
 
     while index + 2 < len(active_qubits):
         q_index = active_qubits[index]
@@ -173,8 +172,8 @@ def legacy_conv_layer_func(circ, params, active_qubits, barrier=True, kwargs={})
     if barrier:
         circ.barrier()
 
-    print("general畳み込み層追加後")
-    print(circ)
+    # print("3qubit畳み込み層追加後")
+    # print(circ)
 
     return circ
 
@@ -190,7 +189,7 @@ def legacy_pool_layer_func(circ, params, active_qubits, barrier=True, kwargs={})
     '''
 
     pool_operators = generate_gell_mann(2)
-    v1 = get_conv_op(pool_operators. params[:3]) # first 3 parameters for V1, last 3 for V2
+    v1 = get_conv_op(pool_operators, params[:3]) # first 3 parameters for V1, last 3 for V2
     v2 = get_conv_op(pool_operators, params[3:])
     v1_pool = qi.Operator(controlled_pool(v1))
     v2_pool = qi.Operator(controlled_pool(v2))
@@ -219,8 +218,8 @@ def legacy_pool_layer_func(circ, params, active_qubits, barrier=True, kwargs={})
     if barrier:
         circ.barrier()
 
-    print("プーリング畳み込み層追加後")
-    print(circ)
+    # print("プーリング畳み込み層追加後")
+    # print(circ)
 
     return circ
 
@@ -361,13 +360,13 @@ def get_legacy_fc_layer(num_active_qubits):
     return fc_layer
 
 
-def get_cunstom_conv_layer(group_size):
+def get_custom_conv_layer(group_size):
     '''
     custom conv layerのインスタンスを作成する
     '''
     num_params = 0
     for q in range(group_size):
-        num_params += 2 ** 9
+        num_params += 2 ** q
     num_params = (num_params * 2 - 1) * 2 + 1   #詳細はhttps://arxiv.org/pdf/quant-ph/0407010.pdf
 
     layer_name = "custom_conv_layer_n{}".format(group_size)

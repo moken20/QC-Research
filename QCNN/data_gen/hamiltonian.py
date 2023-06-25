@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 import scipy.sparse.linalg
 
 
-def read_eigenvalues(file):
+def read_eigenvectors(file):
     '''
     .txtとしてまとめられているデータセットを読み込んで、パラメータh1h2とそれに対応する
     固有ベクトルをリストに格納する。
@@ -83,7 +83,7 @@ class Hamiltonian:
         for i in range(self.qbits):
             elem = i + 1
             if self.verbose: print(f"second term{elem}/{self.qbits}")
-            self.second_term -= find_kron(X, elem, self.qubits).toarray()
+            self.second_term -= find_kron(X, elem, self.qbits).toarray()
 
 
     def get_third_term(self):
@@ -115,7 +115,7 @@ class Hamiltonian:
 
             combined = sparse.coo_matrix((np.ones(self.size, dtype=int), (b1_rows, b2_cols)),
                                          shape=(self.size, self.size))
-            self.third_tem -= combined.toarray()
+            self.third_term -= combined.toarray()
 
     
     def generate_data(self, h1_range, h2_range, name):
@@ -128,7 +128,7 @@ class Hamiltonian:
         filename = f'dataset_n={self.qbits}_' + name + ".txt"
         if os.path.isfile(filename): os.remove(filename)
 
-        h1h2 = [[h1. h2] for h1 in np.linspace(self.h1_min, self.h1_max, h1_range)
+        h1h2 = [[h1, h2] for h1 in np.linspace(self.h1_min, self.h1_max, h1_range)
                 for h2 in np.linspace(self.h2_min, self.h2_max, h2_range)]
         
         for h1, h2 in tqdm.tqdm(h1h2):
@@ -150,7 +150,6 @@ class Hamiltonian:
     def find_eigval_with_sparse(h):
         b, c = sparse.linalg.eigs(h, k=1, which='SR', tol=1e-16)
         return b, c.flatten()
-    
     @staticmethod
     def find_eigval_with_np(h):
         ww, vv = np.linalg.eig(h)
@@ -181,7 +180,11 @@ Z = sparse.dia_matrix((np.array([1, -1]), np.array([0])), dtype=int, shape=(2, 2
 X = sparse.dia_matrix((np.array([np.ones(1)]), np.array([-1])), dtype=int, shape=(2, 2))
 X.setdiag(np.ones(1), 1)
 
-if __name__ == '__mian__':
+if __name__ == '__main__':
+    '''
+    生成されるデータは(h1, h2)_(実数)*2^n の形式。後半部分はh1,h2で決まるハミルトニアンの固有ベクトルを表し、
+    各実数は計算基底で展開したときの係数を表す。
+    '''
     s = time.time()
     n = 9
     

@@ -14,9 +14,13 @@ class QcnnStruct:
     QCNN回路のベースとなるクラス
     '''
 
-    Leyers = {layers.legacy_conv4_layer.name: layers.legacy_conv4_layer,
+    Layers = {layers.legacy_conv4_layer.name: layers.legacy_conv4_layer,
               layers.legacy_conv_layer.name: layers.legacy_conv_layer,
               layers.legacy_pool_layer.name: layers.legacy_pool_layer}
+    
+    legacy_fully_connected_layer = layers.get_legacy_fc_layer(9 // 3)              #変更箇所　(n_qubit // 3)にする
+    Layers[legacy_fully_connected_layer.name] = legacy_fully_connected_layer       #変更追加箇所
+
     
     def __init__(self, num_qubits):
         self.num_qubits = num_qubits
@@ -37,6 +41,10 @@ class QcnnStruct:
         random=Trueにしたらrandomに設定され、それ以外なら1に初期化。paramsは[[layer1],[layer2]...]のように
         多重配列になっている。
         '''
+        if specific_params is not None:
+            self.params = specific_params
+            return
+
         params = []
         for layer_info in self.structure:
             layer = self.Layers[layer_info[0]]
@@ -100,7 +108,7 @@ class QcnnStruct:
 
             if "update_active_qubits" in kwargs:
                 update_params_dict = kwargs["update_active_qubits"]
-                group_len = update_params_dict[group_len]
+                group_len = update_params_dict["group_len"]
                 target = update_params_dict["target"]
 
                 self.update_active_qubits(group_len, target)
@@ -125,7 +133,7 @@ class QcnnStruct:
 
             if "update_active_qubits" in kwargs:
                 update_params_dict = kwargs["update_active_qubits"]
-                group_len = update_params_dict[group_len]
+                group_len = update_params_dict["group_len"]
                 target = update_params_dict["target"]
 
                 active_qubits = self.get_updated_active_qubits(active_qubits, group_len, target)
@@ -162,7 +170,7 @@ class Qcnn(QcnnStruct):
         '''
         input_wfsを最初の状態として、qcnnを回す
         '''
-        circ = self.generate_circ(params)
+        circ = self.generate_circ(params, draw=False)
         predictions = np.zeros(len(input_wfs))
 
         for index, wf in enumerate(input_wfs):
@@ -220,7 +228,7 @@ class Qcnn(QcnnStruct):
         pool_func_for_mpを使ってパラメータ全体の勾配行列をマルチスレッディングで求めるモジュール
         '''
         indexes = [(i, j) for i, val in enumerate(self.params) for j, _ in enumerate(val)]
-
+            
         p = mp.Pool(mp.cpu_count())
         grad_tuple = p.starmap(self.pool_func_for_mp, zip(indexes,
                                                           itertools.repeat(input_wfs),
@@ -261,7 +269,22 @@ class Qcnn(QcnnStruct):
     
     def middle_qubit_exp_value(self, state_vect):
         '''
-        
+        残ったqbitsの中央のの1qubitをx測定する。
+        state_vectは2^n個の実数で表されていて、各値は計算基底で展開したときの係数。
+        この真ん中のqubitがx基底で1となる確率を計測するには以下の手順に従う
+
+        1. 真ん中のqubitが1の全状態が計算基底でどのように表される調べる
+           3bitの場合、真ん中が1の状態は、[0, 1, 0], [0, 1, 1], [1, 1, 0], [1, 1, 1]の4つで
+           それらにあたる計算基底は 
+           0x1x0 = [0, 0, 1, 0, 0, 0, 0, 0] でstate_vectの3番目の実数^2が確率
+           0x1x1 = [0, 0, 0, 1, 0, 0, 0, 0] でstate_vectの4番目の実数^2が確率
+           1x1x0 = [0, 0, 0, 0, 0, 0, 1, 0] でstate_vectの7番目の実数^2が確率
+           1x1x1 = [0, 0, 0, 0, 0, 0, 0, 1] でstate_vectの8番目の実数^2が確率
+           
+        2. 上の全ての確率を足し合わせて求めたsumsがz基底で1になる確率
+
+        3. x基底での1に成る確率は1/√2((1-sums)-sums)で求まる
+
         '''
         final_active_qubits = self.get_final_state_active_qubits()
         middle_qubit = final_active_qubits[len(final_active_qubits) // 2]   #middle qubitのindex
@@ -272,7 +295,7 @@ class Qcnn(QcnnStruct):
         new_list =np.array([elem for elem, val in enumerate(all_binary_combs) if val[middle_qubit] == 1])
         sums = np.sum(probability_vector[new_list])
 
-        return (-1 * sums) + (1 * (1 - sums))
+        return ((-1 * sums) + (1 * (1 - sums)))      #疑問: 1/√2しなくていいのか？
     
     @staticmethod
     def export_params(qcnn_struct, params, fname="model.pkl"):
